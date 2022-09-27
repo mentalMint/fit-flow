@@ -1,0 +1,73 @@
+import runtime;
+import ds/array;
+
+fib(n : int) -> [int] { 
+    if (n > 2) {
+        previous : [int] = fib(n - 1);
+        concat(previous, [previous[n - 2] + previous[n - 3]]);
+    } else if (n == 2) {
+        [0, 1];
+    } else if (n == 1) { 
+        [0];
+    } else {
+        [];
+    }
+}
+
+fibTail(n : int, arr : [int]) -> [int] {
+    if (n > 2) {
+        length = length(arr);
+        fibTail(n - 1, arrayPush(arr, arr[length - 1] + arr[length - 2]));
+    } else if (n == 2) {
+        arr;
+    } else if (n == 1) {
+        [0];
+    } else {
+        [];
+    }
+}
+
+fib2(n : int) -> [int] {
+    fibTail(n, [0, 1]);
+}
+
+fib3(n : int) -> [int] {
+    if (n > 2) {
+        previous : ref [int] = ref fib3(n - 1);
+        refArrayPush(previous, ^previous[n - 2] + ^previous[n - 3]);
+        ^previous;
+    } else if (n == 2) {
+        [0, 1];
+    } else if (n == 1) {
+        [0];
+    } else  {
+        [];
+    }
+}
+
+//fibonacci req tail ref
+fibTailRef(n : int, arr : ref [int]) -> [int] {
+    if (n > 2) {
+        length = length(^arr);
+        refArrayPush(arr, ^arr[length - 1] + ^arr[length - 2]);
+        fibTail(n - 1, ^arr);
+    } else if (n == 2) {
+        ^arr;
+    } else if (n == 1) {
+        [0];
+    } else {
+        [];
+    }
+}
+
+fib2Ref(n : int) -> [int] {
+    fibTail(n, [0, 1]);
+}
+
+main() {
+	// println(fib(12));
+    println(fib2(12));
+    // println(fib3(12));
+    println(fib2Ref(12));
+    quit(0);
+}

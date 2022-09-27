@@ -1,0 +1,11 @@
+import runtime;
+import string;
+
+intToString(intArray : [int]) -> [string] {
+	map(intArray, i2s);
+}
+
+main() {
+	println(intToString([19996, 2, 3, 4]));
+	quit(0);
+}
