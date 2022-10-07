@@ -1,0 +1,66 @@
+import lingo/pegcode/driver;
+
+export {
+	Expr ::= Const, Var, BinOp;
+	BinOp(name : string, left: Expr, right: Expr);
+	Var(name: string);
+	Const(value: double);
+    calculate(ex: Expr, variables : Tree<string, double>) -> double;
+    print(ex: Expr) -> string;
+    parse(source: string) -> Expr;
+}
+
+calculate(ex: Expr, variables : Tree<string, double>) {
+	switch(ex)
+	{
+		Const(c): c;
+		Var(name): 
+			switch (lookupTree(variables, name)) {
+            	Some(num): num;
+            	None(): 0.0;
+			}
+		BinOp(name, l, r):
+			if (name == "+") {
+				calculate(l, variables) + calculate(r, variables);
+			} else if (name == "*") {
+				calculate(l, variables) * calculate(r, variables);
+			} else {
+				0.0;
+			}
+	}
+}
+
+print(ex: Expr) {
+	switch(ex) {
+		Const(c): d2s(c);
+		Var(name): name;
+		BinOp(name, l, r):
+			if (name == "+") {
+				"(" + print(l) + " + " + print(r) + ")";
+			} else { 
+				 "(" + print(l) + " * " + print(r) + ")";
+			}
+	}
+}
+
+buildMul(xs : [flow]) {
+	fold(xs[1], xs[0], \acc, x -> BinOp("*", acc, x));
+}
+
+arithGrammarOp : ref Maybe<[PegOp]> = ref None();
+
+arithGrammar() {
+	// Prepare the grammar in the given file using flow syntax for inlining a string from a file
+	// but be sure to only do this once
+	onlyOnce(arithGrammarOp, \ -> {
+		compilePegGrammar("#include infix_notation.lingo");
+	});
+}
+
+parse(source: string) {
+	specialPegActions = {
+		t1 = setTree(defaultPegActions.t, "buildMul", buildMul);
+		SemanticActions(t1);
+	}
+	parsic(arithGrammar(), source, specialPegActions);
+}

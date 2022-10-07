@@ -1,0 +1,8 @@
+add = ws mul:left ws "+" ws mul:right ws { BinOp("+", :left, :right) } | mul;
+mul = ws unary:left ws rmul+:right { buildMul(:left, :right) } | unary;
+rmul = ws '*' ws unary:t ws { :t };
+exp = ws add:e ws { :e } | ws '(' ws exp:e ws ')' ws { :e };
+unary = ws const:u ws { :u } | ws var:u ws { :u } | ws '(' ws exp:e ws ')' ws { :e };
+const = ('0'-'9')+$d { Const(s2d($d)) };
+var = ('a' - 'z')+$name { Var($name) };
+ws = (' '|'\r'|'\n'|'\t')*;

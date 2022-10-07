@@ -1,0 +1,26 @@
+import string;
+import math/math;
+import ds/tree;
+
+import infix_notation;
+
+inputVariablesIntoTree() -> Tree<string, double> {
+    variables = strSplit(getUrlParameter("vars"), ",");
+    fold(variables, makeTree(),\ tree, variable -> {setTree(tree, variable, s2d(getUrlParameter(variable)))});
+}
+
+main() {
+	variables : Tree<string, double> = inputVariablesIntoTree();
+    expr = getUrlParameter("expr");
+	usage : string = "Usage: calculate -- \"expr=<expression>\" \"vars=<variables>\" \"<variable1>=<value1>\" ...";
+	if (expr == "") {
+		println(usage);
+		quit(0);
+	}
+
+	// println("Expression: " + expr);
+	e : Expr = parse(expr);
+	println(e);
+	println(print(e) + " = " + d2s(calculate(e, variables)));
+	quit(0);
+}

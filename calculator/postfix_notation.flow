@@ -1,0 +1,86 @@
+import lingo/pegcode/driver;
+import ds/dlist;
+
+import infix_notation;
+
+export {
+    parseRPN(source: string) -> [RPNExpr];
+	calculateRPN(arr : [RPNExpr], variables : Tree<string, double>) -> double;
+	translateRPNExprToExpr(arr : [RPNExpr]) -> Expr;
+	translateToRPN(expr : Expr) -> [RPNExpr];
+	RPNToString(rpn : [RPNExpr]) -> string;
+	RPNExpr ::= Const, Var, OpName;
+	OpName(name : string);
+	arr : [RPNExpr] = [];
+}
+
+calculateRPN(arr : [RPNExpr], variables : Tree<string, double>) {
+	calculate(translateRPNExprToExpr(arr), variables);
+}
+
+translateRPNExprToExpr(arr : [RPNExpr]) {
+	stack : [Expr] = [];
+	a = fold(arr, stack, \st, val -> {
+		switch (val) {
+			Const(c):
+				arrayPush(st, Const(c));
+			Var(v):
+				arrayPush(st, Var(v));
+			OpName(name): {
+				right = lastElement(st, Const(0.0));
+				a = removeIndex(st, length(st) - 1);
+				left = lastElement(a, Const(0.0));
+				b = removeIndex(a, length(a) - 1);
+				arrayPush(b, BinOp(name, left, right));
+			}
+		}
+	});
+	a[0];
+}
+
+translateReq(expr : Expr, rpn : [RPNExpr]) -> [RPNExpr] {
+	switch(expr) {
+		Const(c):
+			arrayPush(rpn, Const(c));
+		Var(v):
+			arrayPush(rpn, Var(v));
+		BinOp(name, l, r): {
+			a = translateReq(l, rpn);
+			b = translateReq(r, a);
+			arrayPush(b, OpName(name));
+		}
+	}
+}
+
+translateToRPN(expr : Expr) {
+	rpn : [RPNExpr] = [];
+	translateReq(expr, rpn);
+}
+
+RPNToString(rpn : [RPNExpr]) {
+	fold(rpn, "", \str, val -> {
+		switch(val) {
+			Const(c):
+				str+ d2s(c) + " " ;
+			Var(v):
+				str + v + " " ;
+			OpName(name): {
+				str + name + " " ;
+			}
+		}
+	});
+}
+
+RPNGrammarOp : ref Maybe<[PegOp]> = ref None();
+
+RPNGrammar() {
+	// Prepare the grammar in the given file using flow syntax for inlining a string from a file
+	// but be sure to only do this once
+	onlyOnce(RPNGrammarOp, \ -> {
+		compilePegGrammar("#include postfix_notation.lingo");
+	});
+}
+
+parseRPN(source: string) {
+	parsic(RPNGrammar(), source, defaultPegActions);
+}
