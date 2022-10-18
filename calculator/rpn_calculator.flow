@@ -24,7 +24,7 @@ main() {
 	rpn1 : [RPNExpr] = parseRPN(expr);
 	println(rpn1);
 	// println(calculateRPN(e, variables));
-	infix = translateRPNExprToExpr(rpn1);
+	infix = translateToInfix(rpn1);
 	println("\nRPN to infix:");
 	println(infix);
 

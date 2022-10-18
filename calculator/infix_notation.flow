@@ -1,4 +1,5 @@
 import lingo/pegcode/driver;
+import math/math;
 
 export {
 	Expr ::= Const, Var, BinOp;
@@ -6,11 +7,12 @@ export {
 	Var(name: string);
 	Const(value: double);
     calculate(ex: Expr, variables : Tree<string, double>) -> double;
-    print(ex: Expr) -> string;
+    infixToString(ex: Expr) -> string;
     parse(source: string) -> Expr;
+	simplify(ex : Expr) -> Expr;
 }
 
-calculate(ex: Expr, variables : Tree<string, double>) {
+calculate(ex : Expr, variables : Tree<string, double>) {
 	switch(ex)
 	{
 		Const(c): c;
@@ -24,27 +26,108 @@ calculate(ex: Expr, variables : Tree<string, double>) {
 				calculate(l, variables) + calculate(r, variables);
 			} else if (name == "*") {
 				calculate(l, variables) * calculate(r, variables);
+			} else if (name == "-") {
+				calculate(l, variables) - calculate(r, variables);
+			} else if (name == "/") {
+				calculate(l, variables) / calculate(r, variables);
+			} else if (name == "^") {
+				dpow(calculate(l, variables), calculate(r, variables));
 			} else {
 				0.0;
 			}
 	}
 }
 
-print(ex: Expr) {
+infixToString(ex : Expr) {
 	switch(ex) {
 		Const(c): d2s(c);
 		Var(name): name;
 		BinOp(name, l, r):
 			if (name == "+") {
-				"(" + print(l) + " + " + print(r) + ")";
+				"(" + infixToString(l) + " + " + infixToString(r) + ")";
+			} else if (name == "*") { 
+				 "(" + infixToString(l) + " * " + infixToString(r) + ")";
+			} else if (name == "/") { 
+				 "(" + infixToString(l) + " / " + infixToString(r) + ")";
+			} else if (name == "^") { 
+				 "(" + infixToString(l) + " ^ " + infixToString(r) + ")";
 			} else { 
-				 "(" + print(l) + " * " + print(r) + ")";
+				 "(" + infixToString(l) + " - " + infixToString(r) + ")";
 			}
+	}
+}
+
+simplify(ex : Expr) {
+	switch(ex) {
+		BinOp(name, l, r):
+			if (name == "+") {
+				simp_l = simplify(l);
+				simp_r = simplify(r);
+				if (simp_l == Const(0.0)) {
+					simp_r;
+				} else if (simp_r == Const(0.0)) {
+					simp_l;
+				} else if (simp_l == simp_r) {
+					BinOp("*", Const(2.0), simp_l);
+				}  else {
+					BinOp(name, simp_l, simp_r);
+				}
+			} else if (name == "*") {
+				simp_l = simplify(l);
+				simp_r = simplify(r);
+				if (simp_l == Const(0.0) || simp_r == Const(0.0)) {
+					Const(0.0);
+				} else if (simp_l == Const(1.0)) {
+					simp_r;
+				} else if (simp_r == Const(0.0)) {
+					simp_l;
+				} else if (simp_l == simp_r) {
+					BinOp("^", simp_l, Const(2.0));
+				} else {
+					BinOp(name, simp_l, simp_r);
+				}
+			} else if (name == "/") {
+				simp_l = simplify(l);
+				simp_r = simplify(r);
+				if (simp_l == Const(0.0)) {
+					Const(0.0);
+				} elseif (simp_l == simp_r) {
+					Const(1.0);
+				} else {
+					BinOp(name, simp_l, simp_r);
+				}
+			} else if (name == "^") {
+				simp_l = simplify(l);
+				simp_r = simplify(r);
+				if (simp_r == Const(0.0)) {
+					Const(1.0);
+				} else if (simp_l == Const(0.0)) {
+					Const(0.0);
+				} else {
+					BinOp(name, simp_l, simp_r);
+				}
+			} else {
+				simp_l = simplify(l);
+				simp_r = simplify(r);
+				if (simp_l == simp_r) {
+					Const(0.0);
+				} else if (simp_r == Const(0.0)) {
+					simp_l;
+				} else {
+					BinOp(name, simp_l, simp_r);
+				}
+			}
+
+		default: ex;
 	}
 }
 
 buildMul(xs : [flow]) {
 	fold(xs[1], xs[0], \acc, x -> BinOp("*", acc, x));
+}
+
+buildOp(xs : [flow]) {
+	fold(xs[2], xs[1], \acc, x -> BinOp(xs[0], acc, x));
 }
 
 arithGrammarOp : ref Maybe<[PegOp]> = ref None();
@@ -59,7 +142,7 @@ arithGrammar() {
 
 parse(source: string) {
 	specialPegActions = {
-		t1 = setTree(defaultPegActions.t, "buildMul", buildMul);
+		t1 = setTree(defaultPegActions.t, "buildOp", buildOp);
 		SemanticActions(t1);
 	}
 	parsic(arithGrammar(), source, specialPegActions);

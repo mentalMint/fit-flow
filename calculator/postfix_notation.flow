@@ -6,19 +6,19 @@ import infix_notation;
 export {
     parseRPN(source: string) -> [RPNExpr];
 	calculateRPN(arr : [RPNExpr], variables : Tree<string, double>) -> double;
-	translateRPNExprToExpr(arr : [RPNExpr]) -> Expr;
+	translateToInfix(arr : [RPNExpr]) -> Expr;
 	translateToRPN(expr : Expr) -> [RPNExpr];
 	RPNToString(rpn : [RPNExpr]) -> string;
 	RPNExpr ::= Const, Var, OpName;
 	OpName(name : string);
-	arr : [RPNExpr] = [];
+	// arr : [RPNExpr] = [];
 }
 
 calculateRPN(arr : [RPNExpr], variables : Tree<string, double>) {
-	calculate(translateRPNExprToExpr(arr), variables);
+	calculate(translateToInfix(arr), variables);
 }
 
-translateRPNExprToExpr(arr : [RPNExpr]) {
+translateToInfix(arr : [RPNExpr]) {
 	stack : [Expr] = [];
 	a = fold(arr, stack, \st, val -> {
 		switch (val) {
@@ -61,15 +61,60 @@ RPNToString(rpn : [RPNExpr]) {
 	fold(rpn, "", \str, val -> {
 		switch(val) {
 			Const(c):
-				str+ d2s(c) + " " ;
+				str+ d2s(c) + " ";
 			Var(v):
-				str + v + " " ;
+				str + v + " ";
 			OpName(name): {
-				str + name + " " ;
+				str + name + " ";
 			}
 		}
 	});
 }
+
+// makePatterns() {
+// 	patterns : Tree<[RPNExpr], [RPNExpr]> = makeTree();
+// 	makeTree(patterns, [Const(0.0), Var("x"), OpName("+")], [Var("x")]);
+// }
+
+// equals(left : RPNExpr, right : RPNExpr) -> int {
+// 	switch (left) {
+// 		Const(lval):
+// 			switch (right) {
+// 				Const(rval):
+// 					if (lval == rval) {
+// 						1;
+// 					} else {
+// 						0;
+// 					}
+// 				Var(rval): 0;
+// 				OpName(rval): 0;
+// 			}
+// 		Var(lval):
+// 			switch (right) {
+// 				Const(rval): 1;
+// 				Var(rval): 1;
+// 				OpName(rval): 0;
+// 			}
+// 		OpName(lval):
+// 			switch (right) {
+// 				Const(rval): 0;
+// 				Var(rval): 0;
+// 				OpName(rval): 
+// 					if (lval == rval) {
+// 						1;
+// 					} else {
+// 						0;
+// 					}
+// 			}
+// 	}
+// }
+
+// simplify(rpn : [RPNExpr]) {
+// 	patterns = makePatterns();
+// 	foldTree(patterns, rpn, \key, value, expr -> {
+// 		fold(expr, [], \acc, val -> {});
+// 	});
+// }
 
 RPNGrammarOp : ref Maybe<[PegOp]> = ref None();
 

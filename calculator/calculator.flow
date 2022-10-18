@@ -21,6 +21,12 @@ main() {
 	// println("Expression: " + expr);
 	e : Expr = parse(expr);
 	println(e);
-	println(print(e) + " = " + d2s(calculate(e, variables)));
+	println(infixToString(e) + " = " + d2s(calculate(e, variables)));
+
+	simpEx: Expr = simplify(e);
+	println("Simplified expression:");
+	println(simpEx);
+	println(infixToString(simpEx) + " = " + d2s(calculate(e, variables)));
+
 	quit(0);
 }
