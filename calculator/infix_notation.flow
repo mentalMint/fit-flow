@@ -38,6 +38,49 @@ calculate(ex : Expr, variables : Tree<string, double>) {
 	}
 }
 
+equals(l : Expr, r : Expr) -> bool {
+	switch (l) {
+		BinOp(name1, l1, r1): {
+			if (name1 == "+") {
+				switch (r) {
+					BinOp(name2, l2, r2):
+						if (name2 == "+" && ((equals(l1, l2) && equals(r1, r2)) || (equals(l1, r2) && equals(r1, l2)))) {
+							true;
+						} else {
+							false;
+						}
+					default: false;
+				}
+			} else if (name1 == "*") {
+				switch (r) {
+					BinOp(name2, l2, r2):
+						if (name2 == "*" && ((equals(l1, l2) && equals(r1, r2)) || (equals(l1, r2) && equals(r1, l2)))) {
+							true;
+						} else {
+							false;
+						}
+					default: false;
+				}
+			} else {
+				if (l == r) {
+					true;
+				} else {
+					false;
+				}
+			}
+		}
+		default:
+			switch (r) {
+				default:
+					if (l == r) {
+						true;
+					} else {
+						false;
+					}
+			}
+	}
+}
+
 infixToString(ex : Expr) {
 	switch(ex) {
 		Const(c): d2s(c);
@@ -46,13 +89,13 @@ infixToString(ex : Expr) {
 			if (name == "+") {
 				"(" + infixToString(l) + " + " + infixToString(r) + ")";
 			} else if (name == "*") { 
-				 "(" + infixToString(l) + " * " + infixToString(r) + ")";
+				"(" + infixToString(l) + " * " + infixToString(r) + ")";
 			} else if (name == "/") { 
-				 "(" + infixToString(l) + " / " + infixToString(r) + ")";
+				"(" + infixToString(l) + " / " + infixToString(r) + ")";
 			} else if (name == "^") { 
-				 "(" + infixToString(l) + " ^ " + infixToString(r) + ")";
+				"(" + infixToString(l) + " ^ " + infixToString(r) + ")";
 			} else { 
-				 "(" + infixToString(l) + " - " + infixToString(r) + ")";
+				"(" + infixToString(l) + " - " + infixToString(r) + ")";
 			}
 	}
 }
@@ -67,9 +110,33 @@ simplify(ex : Expr) {
 					simp_r;
 				} else if (simp_r == Const(0.0)) {
 					simp_l;
-				} else if (simp_l == simp_r) {
+				} else if (equals(simp_l, simp_r)) {
 					BinOp("*", Const(2.0), simp_l);
-				}  else {
+				} else if (simp_l.structname == "BinOp" && simp_r.structname == "BinOp") {
+					switch (simp_l) {
+						BinOp(name1, l1, r1):
+							switch (simp_r) {
+								BinOp(name2, l2, r2):
+									if (name1 == "*" && name2 == "*") {
+										if (equals(l1, l2)) {
+											BinOp("*", l1, BinOp("+", r1, r2));
+										} else if ( equals(r1, r2)) {
+											BinOp("*", r1, BinOp("+", l1, l2));
+										} else if ( equals(l1, r2)) {
+											BinOp("*", l1, BinOp("+", r1, l2));
+										} else if ( equals(r1, l2)) {
+											BinOp("*", r1, BinOp("+", l1, r2));
+										} else {
+											BinOp(name, simp_l, simp_r);
+										}
+									} else {
+										BinOp(name, simp_l, simp_r);
+									}
+								default: BinOp(name, simp_l, simp_r);
+							}
+						default: BinOp(name, simp_l, simp_r);
+					}
+				} else {
 					BinOp(name, simp_l, simp_r);
 				}
 			} else if (name == "*") {
@@ -81,7 +148,7 @@ simplify(ex : Expr) {
 					simp_r;
 				} else if (simp_r == Const(0.0)) {
 					simp_l;
-				} else if (simp_l == simp_r) {
+				} else if (equals(simp_l, simp_r)) {
 					BinOp("^", simp_l, Const(2.0));
 				} else {
 					BinOp(name, simp_l, simp_r);
@@ -91,7 +158,7 @@ simplify(ex : Expr) {
 				simp_r = simplify(r);
 				if (simp_l == Const(0.0)) {
 					Const(0.0);
-				} elseif (simp_l == simp_r) {
+				} elseif (equals(simp_l, simp_r)) {
 					Const(1.0);
 				} else {
 					BinOp(name, simp_l, simp_r);
@@ -109,7 +176,7 @@ simplify(ex : Expr) {
 			} else {
 				simp_l = simplify(l);
 				simp_r = simplify(r);
-				if (simp_l == simp_r) {
+				if (equals(simp_l, simp_r)) {
 					Const(0.0);
 				} else if (simp_r == Const(0.0)) {
 					simp_l;
