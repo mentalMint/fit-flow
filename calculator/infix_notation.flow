@@ -2,14 +2,31 @@ import lingo/pegcode/driver;
 import math/math;
 
 export {
-	Expr ::= Const, Var, BinOp;
+	Expr ::= Const, Var, BinOp, Log, Null;
 	BinOp(name : string, left: Expr, right: Expr);
-	Var(name: string);
-	Const(value: double);
-    calculate(ex: Expr, variables : Tree<string, double>) -> double;
-    infixToString(ex: Expr) -> string;
-    parse(source: string) -> Expr;
+	Var(name : string);
+	Const(value : double);
+	Log(ex : Expr);
+	Null();
+    calculate(ex : Expr, variables : Tree<string, double>) -> double;
+    infixToString(ex : Expr) -> string;
+    parse(source : string) -> Expr;
 	simplify(ex : Expr) -> Expr;
+}
+
+containsVar(ex: Expr, x : Expr) -> bool {
+	switch (ex) {
+		BinOp(name, l, r): containsVar(l, x) || containsVar(r, x);
+
+		Log(ex2): containsVar(ex2, x);
+
+		default:
+			if (ex == x) {
+				true;
+			} else {
+				false;
+			}
+	}
 }
 
 takeDerivative(ex : Expr, x : Expr) -> Expr {
@@ -23,9 +40,22 @@ takeDerivative(ex : Expr, x : Expr) -> Expr {
 				BinOp("+", BinOp("*", takeDerivative(l, x), r), BinOp("*", l, takeDerivative(r, x)));
 			} else if (name == "/") {
 				BinOp("/", BinOp("-", BinOp("*", takeDerivative(l, x), r), BinOp("*", l, takeDerivative(r, x))), BinOp("^", r, Const(2.0)));
+			} else if (name == "^") {
+				if (containsVar(l, x)) {
+					if (!containsVar(r, x)) {
+						BinOp("*", BinOp("*", r, BinOp("^", l, BinOp("-", r, Const(1.0)))), takeDerivative(l, x));
+					} else {
+						Null();
+					}
+				} else {
+					BinOp("*", BinOp("*", BinOp("^", l, r), Log(l)), takeDerivative(r, x));
+				}
 			} else {
-				BinOp("*", BinOp("*", r, BinOp("^", l, BinOp("-", r, Const(1.0)))), takeDerivative(l, x));
+				takeDerivative(takeDerivative(l, r), r);
 			}
+
+		Log(ex2): BinOp("*", BinOp("/", Const(1.0), ex2), takeDerivative(ex2, x));
+
 		default:
 			if (ex == x) {
 				Const(1.0);
@@ -45,6 +75,8 @@ calculate(ex : Expr, variables : Tree<string, double>) {
             	Some(num): num;
             	None(): 0.0;
 			}
+
+		Log(ex2): log(calculate(ex2, variables));
 		
 		BinOp(name, l, r):
 			if (name == "+") {
@@ -62,6 +94,8 @@ calculate(ex : Expr, variables : Tree<string, double>) {
 			} else {
 				0.0;
 			}
+		
+		Null(): 0.0;
 	}
 }
 
@@ -112,6 +146,7 @@ infixToString(ex : Expr) {
 	switch(ex) {
 		Const(c): d2s(c);
 		Var(name): name;
+		Log(ex2): "log" + infixToString(ex2);
 		BinOp(name, l, r):
 			if (name == "+") {
 				"(" + infixToString(l) + " + " + infixToString(r) + ")";
@@ -126,6 +161,7 @@ infixToString(ex : Expr) {
 			} else { 
 				"(" + infixToString(l) + " - " + infixToString(r) + ")";
 			}
+		Null(): "Null";
 	}
 }
 
@@ -216,6 +252,8 @@ simplify(ex : Expr) {
 				}
 			}
 
+		Log(ex2): Log(simplify(ex2));
+
 		default: ex;
 	}
 	
@@ -224,10 +262,6 @@ simplify(ex : Expr) {
 	} else {
 		simplify(simp_ex);
 	}
-}
-
-buildMul(xs : [flow]) {
-	fold(xs[1], xs[0], \acc, x -> BinOp("*", acc, x));
 }
 
 buildOp(xs : [flow]) {
