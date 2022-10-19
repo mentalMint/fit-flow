@@ -15,18 +15,18 @@ main() {
 	usage : string = "Usage: calculate -- \"expr=<expression>\" \"vars=<variables>\" \"<variable1>=<value1>\" ...";
 	if (expr == "") {
 		println(usage);
+		quit(1);
+	} 
+		// println("Expression: " + expr);
+		e : Expr = parse(expr);
+		println(e);
+		println(infixToString(e) + " = " + d2s(calculate(e, variables)));
+
+		simpEx: Expr = simplify(e);
+		println("Simplified expression:");
+		println(simpEx);
+		println(infixToString(simpEx) + " = " + d2s(calculate(e, variables)));
+
 		quit(0);
-	}
-
-	// println("Expression: " + expr);
-	e : Expr = parse(expr);
-	println(e);
-	println(infixToString(e) + " = " + d2s(calculate(e, variables)));
-
-	simpEx: Expr = simplify(e);
-	println("Simplified expression:");
-	println(simpEx);
-	println(infixToString(simpEx) + " = " + d2s(calculate(e, variables)));
-
-	quit(0);
+	
 }

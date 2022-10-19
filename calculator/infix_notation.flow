@@ -12,15 +12,40 @@ export {
 	simplify(ex : Expr) -> Expr;
 }
 
+takeDerivative(ex : Expr, x : Expr) -> Expr {
+	switch (ex) {
+		BinOp(name, l, r):
+			if (name == "+") {
+				BinOp("+", takeDerivative(l, x), takeDerivative(r, x));
+			} else if (name == "-") {
+				BinOp("-", takeDerivative(l, x), takeDerivative(r, x));
+			} else if (name == "*") {
+				BinOp("+", BinOp("*", takeDerivative(l, x), r), BinOp("*", l, takeDerivative(r, x)));
+			} else if (name == "/") {
+				BinOp("/", BinOp("-", BinOp("*", takeDerivative(l, x), r), BinOp("*", l, takeDerivative(r, x))), BinOp("^", r, Const(2.0)));
+			} else {
+				BinOp("*", BinOp("*", r, BinOp("^", l, BinOp("-", r, Const(1.0)))), takeDerivative(l, x));
+			}
+		default:
+			if (ex == x) {
+				Const(1.0);
+			} else {
+				Const(0.0);
+			}
+	}
+}
+
 calculate(ex : Expr, variables : Tree<string, double>) {
 	switch(ex)
 	{
 		Const(c): c;
+
 		Var(name): 
 			switch (lookupTree(variables, name)) {
             	Some(num): num;
             	None(): 0.0;
 			}
+		
 		BinOp(name, l, r):
 			if (name == "+") {
 				calculate(l, variables) + calculate(r, variables);
@@ -32,6 +57,8 @@ calculate(ex : Expr, variables : Tree<string, double>) {
 				calculate(l, variables) / calculate(r, variables);
 			} else if (name == "^") {
 				dpow(calculate(l, variables), calculate(r, variables));
+			} else if (name == "'") {
+				calculate(takeDerivative(l, r), variables);
 			} else {
 				0.0;
 			}
@@ -93,7 +120,9 @@ infixToString(ex : Expr) {
 			} else if (name == "/") { 
 				"(" + infixToString(l) + " / " + infixToString(r) + ")";
 			} else if (name == "^") { 
-				"(" + infixToString(l) + " ^ " + infixToString(r) + ")";
+				"(" + infixToString(l) + "^" + infixToString(r) + ")";
+			} else if (name == "'") { 
+				"d/d" + infixToString(r) + " " + infixToString(l);
 			} else { 
 				"(" + infixToString(l) + " - " + infixToString(r) + ")";
 			}
@@ -101,7 +130,7 @@ infixToString(ex : Expr) {
 }
 
 simplify(ex : Expr) {
-	switch(ex) {
+	simp_ex = switch(ex) {
 		BinOp(name, l, r):
 			if (name == "+") {
 				simp_l = simplify(l);
@@ -146,7 +175,7 @@ simplify(ex : Expr) {
 					Const(0.0);
 				} else if (simp_l == Const(1.0)) {
 					simp_r;
-				} else if (simp_r == Const(0.0)) {
+				} else if (simp_r == Const(1.0)) {
 					simp_l;
 				} else if (equals(simp_l, simp_r)) {
 					BinOp("^", simp_l, Const(2.0));
@@ -173,6 +202,8 @@ simplify(ex : Expr) {
 				} else {
 					BinOp(name, simp_l, simp_r);
 				}
+			} else if (name == "'") {
+				simplify(takeDerivative(l, r));
 			} else {
 				simp_l = simplify(l);
 				simp_r = simplify(r);
@@ -186,6 +217,12 @@ simplify(ex : Expr) {
 			}
 
 		default: ex;
+	}
+	
+	if (simp_ex == ex) {
+		simp_ex;
+	} else {
+		simplify(simp_ex);
 	}
 }
 
