@@ -1,0 +1,39 @@
+program = ws initbody:i ws body:b ws { Program(:i, :b) };
+initbody = ws init*:inits ws { Initbody(:inits) };
+init = ws "VAR" ws var:v ws ":" ws type:t ws end ws { Init(:v, :t) };
+type =  ws "INT" ws { IntType() } | ws "[" ws type:t ws "]" ws { ArrayType(:t) };
+
+body = ws segment*:c ws { Body(:c) };
+segment = ws command:c ws end ws { :c } | if;
+command = ws (assign | test | iter | choice):e ws { :e };
+assign = ws lvalue:lvalue ws ":=" ws value:value ws{ Assign(:lvalue, :value) };
+value = ws arrayElem:value ws { :value } | ws int:value ws { :value } | ws var:value ws { :value } | ws array:value ws { :value };
+lvalue = ws arrayElem:e ws { :e } | ws var:var ws { :var };
+
+test = ws "(" ws predicate:pred ws "?" ws ")" ws { Test(:pred) };
+iter = ws "(" ws command:command ws "*" ws ")" ws { Iter(:command) };
+choice = ws "(" ws body:body ws ")" ws rchoice+:right ws { buildChoice(:body, :right) };
+rchoice = ws "U" ws "(" ws body:body ws ")" ws { :body };
+
+if = ws "IF" ws predicate:pred ws "THEN" ws body:body ws "ENDIF" ws { If(:pred, :body) } ;
+predicate = ws add:e1 ws predName$name ws add:e2 ws { Pred(:e1, :e2, $name) };
+predName = ('<=' | '>='  | '!=' | '<' | '>' | '='); 
+
+add = ws sub:left ws "+" ws add:right ws { BinOp("+", :left, :right) } | sub;
+sub = ws mul:left ws rsub+:right ws { buildOp("-", :left, :right) } | mul;
+rsub = ws "-" ws mul:val ws { :val };
+mul = ws div:left ws rmul+:right { buildOp("*", :left, :right) } | div;
+rmul = ws "*" ws div:val ws { :val };
+div = ws dif:left ws rdiv+:right { buildOp("/", :left, :right) } | dif;
+rdiv = ws "/" ws dif:val ws { :val };
+dif = ws "d/d" atom:val ws "(" ws add:ex ws ")" ws { BinOp("'", :ex, :val) } | atom;
+atom = ws arrayElem:val ws { :val } | ws int:val ws { :val } | ws var:val ws { :val } | ws "(" ws expr:val ws ")" ws { :val };
+expr = ws add:val ws { :val } | ws "(" ws expr:val ws ")" ws { :val };
+
+
+arrayElem = ws var:arr ws "[" ws (int | var):idx ws "]" ws { ArrayElem(:arr, :idx) };
+array = ws "[" ws (int | var)+:arr ws "]" ws { Array(:arr) };
+int = ws ('0' - '9')+$i ws { Int(s2i($i)) };
+var = ws ('A' - 'Z')+$name ws { Var($name) };
+ws = (' ' | '\r' | '\n' | '\t')*;
+end = ws ";" ws;

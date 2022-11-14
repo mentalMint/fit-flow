@@ -1,0 +1,61 @@
+import lingo/pegcode/driver;
+
+
+export {
+	Program(initBlock : InitBlock, Body : Body);
+	
+	InitBlock(inits : [Init]);
+	Init(var : Var, type : Type);
+	Var(name : string);
+	Type ::= IntType, ArrayType;
+	IntType();
+	ArrayType(type : Type);
+
+	Body(exprs : [Command]);
+	Command ::= Assign, Test, Iter, If;
+	Assign(lvslue : Lvalue, value : Value);
+	Lvalue ::= Var, ArrayElem;
+
+	Value ::= Int, Array;
+	Int(val : int);
+	Array(vals : [Value]);
+	ArrayElem(array : Var, index : Int);
+
+	Test(pred : Pred);
+	Iter(command : Command);
+	Choice(commands : [Command]);
+	If(pred : Pred, body : Body);
+
+	Expr ::= Int, Var, BinOp;
+	BinOp(name : string, left: Expr, right: Expr);
+	Pred(expr1 : Expr, expr2 : Expr, name : string);
+
+	parse(source : string) -> Program;
+}
+
+buildOp(xs : [flow]) {
+	fold(xs[2], xs[1], \acc, x -> BinOp(xs[0], acc, x));
+}
+
+buildChoice(xs : [flow]) {
+	Choice(xs);
+}
+
+nemoGrammarOp : ref Maybe<[PegOp]> = ref None();
+
+nemoGrammar() {
+	// Prepare the grammar in the given file using flow syntax for inlining a string from a file
+	// but be sure to only do this once
+	onlyOnce(nemoGrammarOp, \ -> {
+		compilePegGrammar("#include nemo_parser.lingo");
+	});
+}
+
+parse(source: string) {
+	specialPegActions = {
+		t1 = setTree(defaultPegActions.t, "buildOp", buildOp);
+		t2 = setTree(t1, "buildChoice", buildChoice);
+		SemanticActions(t2);
+	}
+	parsic(nemoGrammar(), source, specialPegActions);
+}
