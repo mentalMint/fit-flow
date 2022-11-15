@@ -1,0 +1,54 @@
+import examples;
+import nemo_parser;
+import vm_parser;
+
+translateAssign(assign : Assign) -> VMAssign {
+    VMAssign(Int(0), assign.lvalue, assign.value, Array([Int(1)]));
+}
+
+translateBody(body : Body, startLabel : int) -> [Operator] {
+    switch(body) {
+        Assign(lvalue, value): [VMAssign(Int(startLabel), lvalue, value, Array([Int(startLabel + 1)]))];
+        
+        Test(pred): [VMIf(Int(startLabel), pred, Array([Int(startLabel + 1)]), Array([]))];
+        
+        Sequence(lbody, rbody): {
+            lop : [Operator] = translateBody(lbody, startLabel);
+            concat(lop, translateBody(rbody, startLabel + length(lop)));
+        } 
+
+        Choice(lbody, rbody): {
+            lop : [Operator] = translateBody(lbody, startLabel + 1);
+            endl : int = length(lop);
+            arr : [Operator] = concat(
+                [VMIf(Int(startLabel), True(), Array([Int(startLabel + 1), Int(startLabel + 1 + endl)]), Array([]))],
+                lop
+                );
+            concat(arr, translateBody(rbody, startLabel + endl));
+        }
+
+        Iter(ibody): {
+            //Нужно заменить последнюю метку на стартовую
+            iop : [Operator] = translateBody(ibody, startLabel + 1);
+            endi : int = length(iop);
+            concat([VMIf(Int(startLabel), True(), Array([Int(startLabel + 1), Int(startLabel + 1 + endi)]), Array([]))],
+            iop);
+        }
+
+        default: [];
+    }
+}
+
+translate(program : Program) -> VMProgram {
+    vmInitBody : InitBody = program.initBody;
+    operators : [Operator] = translateBody(program.body[0], 0);
+    vmProgram : VMProgram = VMProgram(vmInitBody, operators);
+    vmProgram;
+}
+
+main() {
+	path = getUrlParameter("path");
+	program : Program = parse(getFileContent(path));
+    println(translate(program));
+	quit(0);
+}
