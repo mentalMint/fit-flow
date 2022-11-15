@@ -1,0 +1,53 @@
+import lingo/pegcode/driver;
+
+
+export {
+	Program(initBody : InitBody, body : [Body]);
+	
+	InitBody(inits : [Init]);
+	Init(var : Var, type : Type);
+	Var(name : string);
+	Type ::= IntType, ArrayType;
+	IntType();
+	ArrayType(type : Type);
+
+	Body(ops : [Operator]);
+    Operator ::= Assign, If;
+	Assign(label : Int, lvalue : Lvalue, value : Value, L : Array);
+    If(label : Int, pred : Pred, L1 : Array, L2 : Array);
+
+	Lvalue ::= Var, ArrayElem;
+	Value ::= Array, Expr;
+	Int(val : int);
+	Array(vals : [Value]);
+	ArrayElem(array : Var, index : Int);
+
+	Expr ::= Int, Var, BinOp;
+	BinOp(name : string, left: Expr, right: Expr);
+	Pred(expr1 : Expr, expr2 : Expr, name : string);
+    Not(pred : Pred);
+
+	parse(source : string) -> Program;
+}
+
+buildOp(xs : [flow]) {
+	fold(xs[2], xs[1], \acc, x -> BinOp(xs[0], acc, x));
+}
+
+nemoGrammarOp : ref Maybe<[PegOp]> = ref None();
+
+nemoGrammar() {
+	// Prepare the grammar in the given file using flow syntax for inlining a string from a file
+	// but be sure to only do this once
+	onlyOnce(nemoGrammarOp, \ -> {
+		compilePegGrammar("#include vm_parser.lingo");
+	});
+}
+
+parse(source: string) {
+	specialPegActions = {
+		t1 = setTree(defaultPegActions.t, "buildOp", buildOp);
+		SemanticActions(t1);
+	}
+	parsic(nemoGrammar(), source, specialPegActions);
+}

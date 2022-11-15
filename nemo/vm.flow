@@ -1,0 +1,9 @@
+import examples;
+import vm_parser;
+
+main() {
+	path = getUrlParameter("path");
+	program : Program = parse(getFileContent(path));
+	println(program);
+	quit(0);
+}
