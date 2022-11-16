@@ -2,35 +2,39 @@ import lingo/pegcode/driver;
 
 
 export {
-	Program(initBlock : InitBlock, Body : Body);
+	Program(initBody : InitBody, body : [Body]);
 	
-	InitBlock(inits : [Init]);
+	InitBody(inits : [Init]);
 	Init(var : Var, type : Type);
 	Var(name : string);
 	Type ::= IntType, ArrayType;
 	IntType();
 	ArrayType(type : Type);
 
-	Body(exprs : [Command]);
-	Command ::= Assign, Test, Iter, If;
-	Assign(lvslue : Lvalue, value : Value);
+	Body ::= Assign, Test, Sequence, Choice, If, Iter;
+	Sequence(lbody : Body, rbody : Body);
+	Assign(lvalue : Lvalue, value : Value);
 	Lvalue ::= Var, ArrayElem;
+	Test(cond : Cond);
+	Iter(body : Body);
+	Choice(lbody : Body, rbody : Body);
+	If(cond : Cond, t : Body, e : Body);
 
-	Value ::= Int, Array;
+	Value ::= Expr, Array;
 	Int(val : int);
 	Array(vals : [Value]);
 	ArrayElem(array : Var, index : Int);
 
-	Test(pred : Pred);
-	Iter(command : Command);
-	Choice(commands : [Command]);
-	If(pred : Pred, body : Body);
-
 	Expr ::= Int, Var, BinOp;
 	BinOp(name : string, left: Expr, right: Expr);
+	Cond ::= Not, Pred, True, False;
 	Pred(expr1 : Expr, expr2 : Expr, name : string);
+	Not(cond : Pred);
+	True();
+	False();
 
 	parse(source : string) -> Program;
+	buildOp(xs : [flow]) -> BinOp;
 }
 
 buildOp(xs : [flow]) {
@@ -38,7 +42,11 @@ buildOp(xs : [flow]) {
 }
 
 buildChoice(xs : [flow]) {
-	Choice(xs);
+	fold(xs[1], xs[0], \acc, x -> Choice(acc, x));
+}
+
+buildSequence(xs : [flow]) {
+	fold(xs[1], xs[0], \acc, x -> Sequence(acc, x));
 }
 
 nemoGrammarOp : ref Maybe<[PegOp]> = ref None();
@@ -55,7 +63,8 @@ parse(source: string) {
 	specialPegActions = {
 		t1 = setTree(defaultPegActions.t, "buildOp", buildOp);
 		t2 = setTree(t1, "buildChoice", buildChoice);
-		SemanticActions(t2);
+		t3 = setTree(t2, "buildSequence", buildSequence);
+		SemanticActions(t3);
 	}
 	parsic(nemoGrammar(), source, specialPegActions);
 }

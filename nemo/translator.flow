@@ -3,25 +3,81 @@ import nemo_parser;
 import vm_parser;
 
 translateAssign(assign : Assign) -> VMAssign {
-    VMAssign(Int(0), assign.lvalue, assign.value, Array([Int(1)]));
+    VMAssign(Int(0), assign.lvalue, assign.value, LabelSet([Int(1)]));
 }
+
+maxLabel(operators : [Operator]) -> int {
+    fold(operators, 0, \acc, x -> {
+        max1 : int = max(acc, x.label.val);
+        switch (x) {
+            VMAssign(l, lval, val, lSet): fold(lSet.labels, max1, \acc2, x2 -> {
+                        max(acc2, x2.val);
+                    }
+                );
+
+            VMIf(l, cond, lSet1, lSet2): {
+                max2 : int = fold(lSet1.labels, max1, \acc2, x2 -> {
+                        max(acc2, x2.val);
+                    }
+                );
+
+                fold(lSet2.labels, max2, \acc2, x2 -> {
+                        max(acc2, x2.val);
+                    }
+                );
+            }
+        };
+    });
+}
+
+// changeLabel(operators : [Operator], oldLabel : int, newLabel : int) {
+//     map(operators, \x -> {
+
+//         switch (x) {
+//             VMAssign(l, lval, val, lSet): {
+//                 if (x.label.val == oldLabel) {
+//                     x.label.val = newLabel;
+//                 }
+//                 fold(lSet.labels, max1, \acc2, x2 -> {
+//                     max(acc2, x2.val);
+//                 });
+//             }
+
+//             VMIf(l, cond, lSet1, lSet2): {
+//                 max2 : int = fold(lSet1.labels, max1, \acc2, x2 -> {
+//                         max(acc2, x2.val);
+//                     }
+//                 );
+
+//                 fold(lSet2.labels, max2, \acc2, x2 -> {
+//                         max(acc2, x2.val);
+//                     }
+//                 );
+//             }
+//         };
+//     });
+// }
 
 translateBody(body : Body, startLabel : int) -> [Operator] {
     switch(body) {
-        Assign(lvalue, value): [VMAssign(Int(startLabel), lvalue, value, Array([Int(startLabel + 1)]))];
-        
-        Test(pred): [VMIf(Int(startLabel), pred, Array([Int(startLabel + 1)]), Array([]))];
-        
+        Assign(lvalue, value): {
+            [VMAssign(Int(startLabel), lvalue, value, LabelSet([Int(startLabel + 1)]))];
+        }
+            
+        Test(pred): {
+            [VMIf(Int(startLabel), pred, LabelSet([Int(startLabel + 1)]), LabelSet([]))];
+        }
+
         Sequence(lbody, rbody): {
             lop : [Operator] = translateBody(lbody, startLabel);
-            concat(lop, translateBody(rbody, startLabel + length(lop)));
+            concat(lop, translateBody(rbody, maxLabel(lop)));
         } 
 
-        Choice(lbody, rbody): {
+        Choice(lbody, rbody): { 
             lop : [Operator] = translateBody(lbody, startLabel + 1);
             endl : int = length(lop);
             arr : [Operator] = concat(
-                [VMIf(Int(startLabel), True(), Array([Int(startLabel + 1), Int(startLabel + 1 + endl)]), Array([]))],
+                [VMIf(Int(startLabel), True(), LabelSet([Int(startLabel + 1), Int(startLabel + 1 + endl)]), LabelSet([]))],
                 lop
                 );
             concat(arr, translateBody(rbody, startLabel + endl));
@@ -31,7 +87,7 @@ translateBody(body : Body, startLabel : int) -> [Operator] {
             //Нужно заменить последнюю метку на стартовую
             iop : [Operator] = translateBody(ibody, startLabel + 1);
             endi : int = length(iop);
-            concat([VMIf(Int(startLabel), True(), Array([Int(startLabel + 1), Int(startLabel + 1 + endi)]), Array([]))],
+            concat([VMIf(Int(startLabel), True(), LabelSet([Int(startLabel + 1), Int(startLabel + 1 + endi)]), LabelSet([]))],
             iop);
         }
 
@@ -46,9 +102,101 @@ translate(program : Program) -> VMProgram {
     vmProgram;
 }
 
+
+typeToString(type : Type) -> string {
+    switch (type) {
+        IntType(): "INT";
+        ArrayType(type2): "[" + typeToString(type2) + "]";
+    }
+}
+
+initToString(init : Init) {
+    "VAR " + init.var.name + " : " + typeToString(init.type);
+}
+
+initBodyToString(initBody : InitBody) -> string {
+    fold(initBody.inits, "", \acc, x -> acc + initToString(x) + "\n");
+}
+
+lvalueToString(lvalue : Lvalue) -> string {
+    switch(lvalue) {
+        Var(name): name;
+        ArrayElem(arr, idx): "";
+    }
+}
+
+valueToString(value : Value) -> string {
+    switch(value) {
+        Array(vals): arrayToString(value);
+        Int(val): exprToString(value);
+		Var(name): exprToString(value);
+		BinOp(name, l, r): exprToString(value);
+    }
+}
+
+arrayToString(array : Array) -> string {
+    fold(array.vals, "[", \acc, x -> acc + " " + valueToString(x)) + " ]";
+}
+
+labelSetToString(lSet : LabelSet) -> string {
+    if (length(lSet.labels) == 0) {
+        "∅"
+    } else {
+        fold(lSet.labels, "{", \acc, x -> acc + " " + toString(x.val)) + " }";
+    }
+}
+
+exprToString(expr : Expr) -> string {
+    switch(expr) {
+        Int(val): i2s(val);
+		Var(name): name;
+		BinOp(name, l, r):
+			if (name == "+") {
+				"(" + valueToString(l) + " + " + valueToString(r) + ")";
+			} else if (name == "*") { 
+				"(" + valueToString(l) + " * " + valueToString(r) + ")";
+			} else if (name == "/") { 
+				"(" + valueToString(l) + " / " + valueToString(r) + ")";
+			} else if (name == "^") { 
+				"(" + valueToString(l) + "^" + valueToString(r) + ")";
+			} else if (name == "'") { 
+				"d/d" + valueToString(r) + " " + valueToString(l);
+			} else { 
+				"(" + valueToString(l) + " - " + valueToString(r) + ")";
+			}
+    }
+}
+
+conditionToString(cond : Cond) -> string {
+    switch(cond) {
+        Pred(expr1, expr2, name): exprToString(expr1) + " " + name + " " + exprToString(expr2);
+        Not(cond2): "NOT " + conditionToString(cond2);
+        True(): "true";
+        False(): "false";
+    }
+}
+
+operatorToString(operator : Operator) -> string {
+    switch(operator) {
+        VMAssign(label, lvalue, val, lset): toString(label.val) + ": " + lvalueToString(lvalue) + " := " + valueToString(val) + " goto " + labelSetToString(lset);
+        VMIf(label, cond, lset1, lset2):  toString(label.val) + ": if " + conditionToString(cond) + " then " + labelSetToString(lset1) + " else " + labelSetToString(lset2);
+    }
+}
+
+operatorsToString(operators : [Operator]) -> string {
+    fold(operators, "", \acc, x -> acc + operatorToString(x) + "\n");
+}
+
+vmProgramToString(vmProgram : VMProgram) -> string {
+    initBodyToString(vmProgram.initBody) + "\n" +
+    operatorsToString(vmProgram.operators) + "\n";
+}
+
 main() {
 	path = getUrlParameter("path");
 	program : Program = parse(getFileContent(path));
-    println(translate(program));
+    vmProgram = translate(program);
+    println(vmProgram);
+    println(vmProgramToString(vmProgram));
 	quit(0);
 }
