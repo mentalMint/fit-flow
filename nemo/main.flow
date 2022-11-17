@@ -1,5 +1,4 @@
-import examples;
-import nemo_parser;
+import nemo_parser/nemo_parser;
 
 main() {
 	path = getUrlParameter("path");

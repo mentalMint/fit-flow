@@ -1,9 +1,58 @@
-import examples;
-import vm_parser;
+import vm_parser/vm_parser;
+
+variablesIntoTree(initBody : InitBody) -> Tree<Var, Type> {
+    inits : [Init] = initBody.inits;
+    fold(inits, makeTree(), \tree, variable -> {setTree(tree, variable.var, variable.type)});
+}
+
+operatorsIntoTree(operators : [Operator]) -> Tree<int, Operator> {
+    fold(operators, makeTree(), \tree, operator -> {setTree(tree, operator.label.val, operator)});
+}
+
+executeOperator(label : int, variables : Tree<Var, Type>,
+				operators : Tree<int,
+				Operator>, varVals : Tree<Var, Value>) -> Tree<Var, Value> {
+	operator : Maybe<Operator> = lookupTree(operators, label);
+	switch(operator) {
+		Some(op): 
+			switch(op) {
+				End(l): {
+					println("End");
+					varVals;
+				}
+				VMAssign(l, var, val, lSet): {
+					newVarVals : Tree<Var, Value> = setTree(varVals, var, val);
+					fold(lSet.labels, newVarVals, \vars, lab -> {
+						executeOperator(lab.val, variables, operators, vars);
+					});
+				}
+
+				VMIf(l, cond, lSet1, lSet2): {
+					varVals;
+					// if ()
+					// fold(lSet.labels, newVarVals, \vars, lab -> {
+					// 	executeOperator(lab.val, variables, operators, vars);
+					// });
+				}
+			}
+		None(): varVals;
+	}
+}
+
+execute(variables : Tree<Var, Type>, operators : Tree<int, Operator>) {
+	varVals : Tree<Var, Value> = makeTree();
+	println(executeOperator(0, variables, operators, varVals));
+}
+
+start(vmProgram : VMProgram) {
+	variables : Tree<Var, Type> = variablesIntoTree(vmProgram.initBody);
+	operators : Tree<int, Operator> = operatorsIntoTree(vmProgram.operators);
+	execute(variables, operators);
+}
 
 main() {
 	path = getUrlParameter("path");
-	program : VMProgram = parseVM(getFileContent(path));
-	println(program);
+	vmprogram : VMProgram = parseVM(getFileContent(path));
+	start(vmprogram);
 	quit(0);
 }

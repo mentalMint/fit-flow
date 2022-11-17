@@ -1,6 +1,5 @@
-import examples;
-import nemo_parser;
-import vm_parser;
+import nemo_parser/nemo_parser;
+import vm_parser/vm_parser;
 
 translateAssign(assign : Assign) -> VMAssign {
     VMAssign(Int(0), assign.lvalue, assign.value, LabelSet([Int(1)]));
@@ -26,37 +25,76 @@ maxLabel(operators : [Operator]) -> int {
                     }
                 );
             }
+
+            End(l): max(l.val, max1);
         };
     });
 }
 
-// changeLabel(operators : [Operator], oldLabel : int, newLabel : int) {
-//     map(operators, \x -> {
+changeLabel(operators : [Operator], oldLabel : int, newLabel : int) -> [Operator] {
+    map(operators, \x -> {
+        switch (x) {
+            VMAssign(l, lval, val, lSet): {
+                newL = \ -> {
+                    if (l.val == oldLabel) {
+                        Int(newLabel);
+                    } else {
+                        l;
+                    }
+                };                
 
-//         switch (x) {
-//             VMAssign(l, lval, val, lSet): {
-//                 if (x.label.val == oldLabel) {
-//                     x.label.val = newLabel;
-//                 }
-//                 fold(lSet.labels, max1, \acc2, x2 -> {
-//                     max(acc2, x2.val);
-//                 });
-//             }
+                newLabels : [Int] = map(lSet.labels, \x2 -> {
+                    if (x2.val == oldLabel) {
+                        Int(newLabel);
+                    } else {
+                        x2;
+                    }
+                });
 
-//             VMIf(l, cond, lSet1, lSet2): {
-//                 max2 : int = fold(lSet1.labels, max1, \acc2, x2 -> {
-//                         max(acc2, x2.val);
-//                     }
-//                 );
+                newLSet : LabelSet = LabelSet(newLabels);
+                VMAssign(newL(), lval, val, newLSet);
+            }
 
-//                 fold(lSet2.labels, max2, \acc2, x2 -> {
-//                         max(acc2, x2.val);
-//                     }
-//                 );
-//             }
-//         };
-//     });
-// }
+            VMIf(l, cond, lSet1, lSet2): {
+                newL = \ -> {
+                    if (l.val == oldLabel) {
+                        Int(newLabel);
+                    } else {
+                        l;
+                    }
+                }; 
+
+                newLabels1 : [Int] = map(lSet1.labels, \x2 -> {
+                    if (x2.val == oldLabel) {
+                        Int(newLabel);
+                    } else {
+                        x2;
+                    }
+                });
+
+                newLabels2 : [Int] = map(lSet2.labels, \x2 -> {
+                    if (x2.val == oldLabel) {
+                        Int(newLabel);
+                    } else {
+                        x2;
+                    }
+                });
+                
+                newLSet1 : LabelSet = LabelSet(newLabels1);
+                newLSet2 : LabelSet = LabelSet(newLabels2);
+                VMIf(newL(), cond, newLSet1, newLSet2);
+            }
+
+            End(l): {
+                if (l.val == oldLabel) {
+                        End(Int(newLabel));
+                    } else {
+                        x;
+                    }
+            }
+        };
+    });
+}
 
 translateBody(body : Body, startLabel : int) -> [Operator] {
     switch(body) {
@@ -75,20 +113,26 @@ translateBody(body : Body, startLabel : int) -> [Operator] {
 
         Choice(lbody, rbody): { 
             lop : [Operator] = translateBody(lbody, startLabel + 1);
-            endl : int = length(lop);
+            endl : int = maxLabel(lop);
+            rop :  [Operator] = translateBody(rbody, endl);
+            endr : int = maxLabel(rop);
             arr : [Operator] = concat(
-                [VMIf(Int(startLabel), True(), LabelSet([Int(startLabel + 1), Int(startLabel + 1 + endl)]), LabelSet([]))],
-                lop
+                [VMIf(Int(startLabel),
+                 True(),
+                 LabelSet([Int(startLabel + 1), Int(endl)]),
+                 LabelSet([]))],
+                changeLabel(lop, endl, endr)
                 );
-            concat(arr, translateBody(rbody, startLabel + endl));
+            concat(arr, rop);
         }
 
         Iter(ibody): {
-            //Нужно заменить последнюю метку на стартовую
             iop : [Operator] = translateBody(ibody, startLabel + 1);
-            endi : int = length(iop);
-            concat([VMIf(Int(startLabel), True(), LabelSet([Int(startLabel + 1), Int(startLabel + 1 + endi)]), LabelSet([]))],
-            iop);
+            endi : int = maxLabel(iop);
+            newIop : [Operator] = changeLabel(iop, endi, startLabel);
+            concat([VMIf(Int(startLabel), True(),
+            LabelSet([Int(startLabel + 1), Int(endi)]), LabelSet([]))],
+            newIop);
         }
 
         default: [];
@@ -98,7 +142,9 @@ translateBody(body : Body, startLabel : int) -> [Operator] {
 translate(program : Program) -> VMProgram {
     vmInitBody : InitBody = program.initBody;
     operators : [Operator] = translateBody(program.body[0], 0);
-    vmProgram : VMProgram = VMProgram(vmInitBody, operators);
+    end : int = maxLabel(operators);
+    endOp : End = End(Int(end));
+    vmProgram : VMProgram = VMProgram(vmInitBody, arrayPush(operators, endOp));
     vmProgram;
 }
 
@@ -121,7 +167,6 @@ initBodyToString(initBody : InitBody) -> string {
 lvalueToString(lvalue : Lvalue) -> string {
     switch(lvalue) {
         Var(name): name;
-        ArrayElem(arr, idx): "";
     }
 }
 
@@ -131,6 +176,8 @@ valueToString(value : Value) -> string {
         Int(val): exprToString(value);
 		Var(name): exprToString(value);
 		BinOp(name, l, r): exprToString(value);
+        App(var, idx): exprToString(value);
+        Upd(var, idx, val): "UPD(" + var.name + ", " + valueToString(idx) + ", " + valueToString(val) + ")";
     }
 }
 
@@ -164,6 +211,7 @@ exprToString(expr : Expr) -> string {
 			} else { 
 				"(" + valueToString(l) + " - " + valueToString(r) + ")";
 			}
+        App(var, idx): "APP(" + var.name + ", " + valueToString(idx) + ")";
     }
 }
 
@@ -180,6 +228,7 @@ operatorToString(operator : Operator) -> string {
     switch(operator) {
         VMAssign(label, lvalue, val, lset): toString(label.val) + ": " + lvalueToString(lvalue) + " := " + valueToString(val) + " goto " + labelSetToString(lset);
         VMIf(label, cond, lset1, lset2):  toString(label.val) + ": if " + conditionToString(cond) + " then " + labelSetToString(lset1) + " else " + labelSetToString(lset2);
+        End(label): toString(label.val) + ":";
     }
 }
 
