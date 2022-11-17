@@ -1,6 +1,0 @@
-export {
-	code : string;
-}
-
-// code = " VAR Y : INT;";
-code = "IF A*2>3 THEN X:= A; ENDIF";
