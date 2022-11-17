@@ -1,0 +1,71 @@
+import lingo/pegcode/driver;
+
+
+export {
+	Program(initBody : InitBody, body : [Body]);
+	
+	InitBody(inits : [Init]);
+	Init(var : Var, type : Type);
+	Var(name : string);
+	Type ::= IntType, ArrayType;
+	IntType();
+	ArrayType(type : Type);
+
+	Body ::= Assign, Test, Sequence, Choice, If, Iter;
+	Sequence(lbody : Body, rbody : Body);
+	Assign(lvalue : Lvalue, value : Value);
+	Lvalue ::= Var;
+	Test(cond : Cond);
+	Iter(body : Body);
+	Choice(lbody : Body, rbody : Body);
+	If(cond : Cond, t : Body, e : Body);
+
+	Value ::= Expr, Array, Upd;
+	Int(val : int);
+	Array(vals : [Value]);
+	App(array : Var, index : Value);
+	Upd(array : Var, index : Value, value : Value);
+
+	Expr ::= Int, Var, BinOp, App;
+	BinOp(name : string, left: Expr, right: Expr);
+	Cond ::= Not, Pred, True, False;
+	Pred(expr1 : Expr, expr2 : Expr, name : string);
+	Not(cond : Cond);
+	True();
+	False();
+
+	parse(source : string) -> Program;
+	buildOp(xs : [flow]) -> BinOp;
+}
+
+buildOp(xs : [flow]) {
+	fold(xs[2], xs[1], \acc, x -> BinOp(xs[0], acc, x));
+}
+
+buildChoice(xs : [flow]) {
+	fold(xs[1], xs[0], \acc, x -> Choice(acc, x));
+}
+
+buildSequence(xs : [flow]) {
+	fold(xs[1], xs[0], \acc, x -> Sequence(acc, x));
+}
+
+nemoGrammarOp : ref Maybe<[PegOp]> = ref None();
+
+nemoGrammar() {
+	// Prepare the grammar in the given file using flow syntax for inlining a string from a file
+	// but be sure to only do this once
+	onlyOnce(nemoGrammarOp, \ -> {
+		compilePegGrammar("#include nemo_parser/nemo_parser.lingo");
+	});
+}
+
+parse(source: string) {
+	specialPegActions = {
+		t1 = setTree(defaultPegActions.t, "buildOp", buildOp);
+		t2 = setTree(t1, "buildChoice", buildChoice);
+		t3 = setTree(t2, "buildSequence", buildSequence);
+		SemanticActions(t3);
+	}
+	parsic(nemoGrammar(), source, specialPegActions);
+}
