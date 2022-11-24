@@ -1,4 +1,5 @@
 import vm_parser/vm_parser;
+import math/math;
 
 variablesIntoTree(initBody : InitBody) -> Tree<Var, Type> {
     inits : [Init] = initBody.inits;
@@ -9,39 +10,214 @@ operatorsIntoTree(operators : [Operator]) -> Tree<int, Operator> {
     fold(operators, makeTree(), \tree, operator -> {setTree(tree, operator.label.val, operator)});
 }
 
-executeOperator(label : int, variables : Tree<Var, Type>,
-				operators : Tree<int,
-				Operator>, varVals : Tree<Var, Value>) -> Tree<Var, Value> {
+calculate(ex : Expr, varTypes : Tree<Var, Type>, varVals : Tree<Var, Value>) -> Maybe<int> {
+	switch(ex) {
+		Int(c): Some(c);
+
+		Var(name): {
+			switch(
+				switch (lookupTree(varTypes, ex)) {
+					Some(t): 
+						switch (t) {
+							IntType(): Some(ex);
+							default: None();
+						}
+
+					None(): None();
+				}
+			) {
+				Some(var):
+					switch (lookupTree(varVals, var)) {
+						Some(val): 
+							switch(val) {
+								Int(num): Some(num);
+								default: None();
+							}
+
+						None(): None();
+					}
+
+				None(): None();
+			}		
+		}
+	
+		BinOp(name, l, r):
+			if (name == "+") {
+				switch(calculate(l, varTypes, varVals)) {
+					Some(left):
+						switch(calculate(r, varTypes, varVals)) {
+							Some(right): Some(left + right);
+							None(): None();
+						}
+
+					None(): None();
+				}
+			} else if (name == "*") {
+				switch(calculate(l, varTypes, varVals)) {
+					Some(left):
+						switch(calculate(r, varTypes, varVals)) {
+							Some(right): Some(left * right);
+							None(): None();
+						}
+
+					None(): None();
+				}
+			} else if (name == "-") {
+				switch(calculate(l, varTypes, varVals)) {
+					Some(left):
+						switch(calculate(r, varTypes, varVals)) {
+							Some(right): Some(left - right);
+							None(): None();
+						}
+
+					None(): None();
+				}
+			} else if (name == "/") {
+				switch(calculate(l, varTypes, varVals)) {
+					Some(left):
+						switch(calculate(r, varTypes, varVals)) {
+							Some(right): Some(left / right);
+							None(): None();
+						}
+
+					None(): None();
+				}
+			} else {
+				None();
+			}
+
+		default: None();
+	}
+}
+
+checkCondition(cond : Cond, varTypes : Tree<Var, Type>, varVals : Tree<Var, Value>) -> int {
+	switch(cond) {
+		Not(pred): (checkCondition(pred, varTypes, varVals) + 1) % 2;
+		
+		Pred(expr1, expr2, name): {
+			switch(calculate(expr1, varTypes, varVals)) {
+				Some(left):
+					switch(calculate(expr2, varTypes, varVals)) {
+						Some(right): {
+							if (name == "=") {
+								if (left == right) {
+									1;
+								} else {
+									0;
+								}
+							} else if (name == "!=") {
+								if (left != right) {
+									1;
+								} else {
+									0;
+								}
+							} else if (name == ">") {
+								if (left > right) {
+									1;
+								} else {
+									0;
+								}
+							} else if (name == "<") {
+								if (left < right) {
+									1;
+								} else {
+									0;
+								}
+							} else if (name == ">=") {
+								if (left >= right) {
+									1;
+								} else {
+									0;
+								}
+							} else if (name == "<=") {
+								if (left <= right) {
+									1;
+								} else {
+									0;
+								}
+							} else {
+								-1;
+							}
+						}
+						None(): -1; 
+					}
+				None(): -1; 
+			}			
+		}
+		
+		True(): 1;
+
+		False(): 0;
+	}
+}
+
+executeOperator(label : int, varTypes : Tree<Var, Type>,
+				operators : Tree<int,Operator>,
+				varVals : Tree<Var, Value>) -> Maybe<Tree<Var, Value>> {
 	operator : Maybe<Operator> = lookupTree(operators, label);
+
 	switch(operator) {
 		Some(op): 
 			switch(op) {
 				End(l): {
-					println("End");
-					varVals;
+					Some(varVals);
 				}
+
 				VMAssign(l, var, val, lSet): {
 					newVarVals : Tree<Var, Value> = setTree(varVals, var, val);
-					fold(lSet.labels, newVarVals, \vars, lab -> {
-						executeOperator(lab.val, variables, operators, vars);
-					});
+					if (length(lSet.labels) == 0) {
+							None();
+					} else {
+						fold(lSet.labels, Some(newVarVals), \vars, lab -> {
+							switch(vars) {
+								Some(vars2): executeOperator(lab.val, varTypes, operators, vars2);
+								None(): None();
+							}
+						});
+					}
 				}
 
 				VMIf(l, cond, lSet1, lSet2): {
-					varVals;
-					// if ()
-					// fold(lSet.labels, newVarVals, \vars, lab -> {
-					// 	executeOperator(lab.val, variables, operators, vars);
-					// });
+					condRes = checkCondition(cond, varTypes, varVals);
+					if (condRes == 1) {
+						if (length(lSet1.labels) == 0) {
+							None();
+						} else {
+							fold(lSet1.labels, Some(varVals), \vars, lab -> {
+									switch(vars) {
+										Some(vars2): executeOperator(lab.val, varTypes, operators, vars2);
+										None(): None();
+									}
+								}
+							);
+						}
+					} else if (condRes == 0) {
+						if (length(lSet2.labels) == 0) {
+							None();
+						} else {
+							fold(lSet2.labels, Some(varVals), \vars, lab -> {
+									switch(vars) {
+										Some(vars2): executeOperator(lab.val, varTypes, operators, vars2);
+										None(): None();
+									}
+								}
+							);
+						}
+					} else {
+						None();
+					}
 				}
 			}
-		None(): varVals;
+
+		None(): None();
 	}
 }
 
 execute(variables : Tree<Var, Type>, operators : Tree<int, Operator>) {
 	varVals : Tree<Var, Value> = makeTree();
-	println(executeOperator(0, variables, operators, varVals));
+	varVals2 : Maybe<Tree<Var, Value>> = executeOperator(0, variables, operators, varVals);
+	println(varVals2);
+
 }
 
 start(vmProgram : VMProgram) {

@@ -226,8 +226,10 @@ conditionToString(cond : Cond) -> string {
 
 operatorToString(operator : Operator) -> string {
     switch(operator) {
-        VMAssign(label, lvalue, val, lset): toString(label.val) + ": " + lvalueToString(lvalue) + " := " + valueToString(val) + " goto " + labelSetToString(lset);
-        VMIf(label, cond, lset1, lset2):  toString(label.val) + ": if " + conditionToString(cond) + " then " + labelSetToString(lset1) + " else " + labelSetToString(lset2);
+        VMAssign(label, lvalue, val, lset): toString(label.val) + ": " +
+         lvalueToString(lvalue) + " := " + valueToString(val) + " goto " + labelSetToString(lset);
+        VMIf(label, cond, lset1, lset2):  toString(label.val) + ": if " +
+         conditionToString(cond) + " then " + labelSetToString(lset1) + " else " + labelSetToString(lset2);
         End(label): toString(label.val) + ":";
     }
 }

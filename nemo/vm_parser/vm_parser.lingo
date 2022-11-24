@@ -32,7 +32,7 @@ expr = ws add:val ws { :val } | ws "(" ws expr:val ws ")" ws { :val };
 
 label = int:l { :l };
 labelSet = ws "{" ws int*:arr ws "}" ws { Array(:arr) };
-array = ws "{" ws (int | var)*:arr ws "}" ws { Array(:arr) };
+array = ws "[" ws (int | var)*:arr ws "]" ws { Array(:arr) };
 int = ws ('0' - '9')+$i ws { Int(s2i($i)) };
 var = ws ('A' - 'Z')+$name ws { Var($name) };
 ws = (' ' | '\r' | '\n' | '\t')*;
