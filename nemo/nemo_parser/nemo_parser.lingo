@@ -18,8 +18,9 @@ rseq = ws ";" ws body:body ws { :body };
 app = ws "APP" ws "(" ws var:var ws "," ws value:idx ws ")" ws { App(:var, :idx) };
 upd = ws "UPD" ws "(" ws var:var ws "," ws value:idx ws "," ws value:val ws ")" ws { Upd(:var, :idx, :val) };
 
-if = ws "IF" ws predicate:pred ws "THEN" ws body?:then ws (else)?:else "ENDIF" ws { If(:pred, :then, :else) };
-else = "ELSE" ws body?:else ws { :else };
+if = ws "IF" ws cond:pred ws body?:then ws else?:else ws { buildIf(:pred, :then, :else) };
+else = ws "ELSE" ws body:else ws { :else };
+cond = predicate | ws "TRUE" ws { True() } | ws "FALSE" ws { False() };
 predicate = ws add:e1 ws predName$name ws add:e2 ws { Pred(:e1, :e2, $name) } | ws "NOT" ws predicate:pred ws { Not(:pred) };
 predName = ('<=' | '>=' | '!=' | '<' | '>' | '='); 
 
@@ -34,7 +35,7 @@ dif = ws "d/d" atom:val ws "(" ws add:ex ws ")" ws { BinOp("'", :ex, :val) } | a
 atom = ws app:val ws { :val } | ws int:val ws { :val } | ws var:val ws { :val } | ws "(" ws expr:val ws ")" ws { :val };
 expr = ws add:val ws { :val } | ws "(" ws expr:val ws ")" ws { :val };
 
-array = ws "[" ws (int | var)*:arr ws "]" ws { Array(:arr) };
+array = ws "[" ws value*:arr ws "]" ws { Array(:arr) };
 int = ws ('0' - '9')+$i ws { Int(s2i($i)) };
 var = ws ('A' - 'Z')+$name ws { Var($name) };
 ws = (' ' | '\r' | '\n' | '\t')*;

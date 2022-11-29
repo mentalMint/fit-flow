@@ -1,6 +1,11 @@
 import nemo_parser/nemo_parser;
 import vm_parser/vm_parser;
 
+export {
+    vmProgramToString(vmProgram : VMProgram) -> string;
+    translate(program : Program) -> VMProgram;
+}
+
 translateAssign(assign : Assign) -> VMAssign {
     VMAssign(Int(0), assign.lvalue, assign.value, LabelSet([Int(1)]));
 }
@@ -117,10 +122,12 @@ translateBody(body : Body, startLabel : int) -> [Operator] {
             rop :  [Operator] = translateBody(rbody, endl);
             endr : int = maxLabel(rop);
             arr : [Operator] = concat(
-                [VMIf(Int(startLabel),
-                 True(),
-                 LabelSet([Int(startLabel + 1), Int(endl)]),
-                 LabelSet([]))],
+                [
+                    VMIf(Int(startLabel),
+                    True(),
+                    LabelSet([Int(startLabel + 1), Int(endl)]),
+                    LabelSet([]))
+                ],
                 changeLabel(lop, endl, endr)
                 );
             concat(arr, rop);
@@ -131,7 +138,7 @@ translateBody(body : Body, startLabel : int) -> [Operator] {
             endi : int = maxLabel(iop);
             newIop : [Operator] = changeLabel(iop, endi, startLabel);
             concat([VMIf(Int(startLabel), True(),
-            LabelSet([Int(startLabel + 1), Int(endi)]), LabelSet([]))],
+            LabelSet([Int(endi), Int(startLabel + 1)]), LabelSet([]))],
             newIop);
         }
 
@@ -178,6 +185,7 @@ valueToString(value : Value) -> string {
 		BinOp(name, l, r): exprToString(value);
         App(var, idx): exprToString(value);
         Upd(var, idx, val): "UPD(" + var.name + ", " + valueToString(idx) + ", " + valueToString(val) + ")";
+        None(): "None";
     }
 }
 
@@ -243,11 +251,11 @@ vmProgramToString(vmProgram : VMProgram) -> string {
     operatorsToString(vmProgram.operators) + "\n";
 }
 
-main() {
-	path = getUrlParameter("path");
-	program : Program = parse(getFileContent(path));
-    vmProgram = translate(program);
-    println(vmProgram);
-    println(vmProgramToString(vmProgram));
-	quit(0);
-}
+// main() {
+// 	path = getUrlParameter("path");
+// 	program : Program = parseNemo(getFileContent(path));
+//     vmProgram = translate(program);
+//     println(vmProgram);
+//     println(vmProgramToString(vmProgram));
+// 	quit(0);
+// }

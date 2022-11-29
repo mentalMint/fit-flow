@@ -2,7 +2,7 @@ import nemo_parser/nemo_parser;
 
 main() {
 	path = getUrlParameter("path");
-	program : Program = parse(getFileContent(path));
+	program : Program = parseNemo(getFileContent(path));
 	println(program);
 	quit(0);
 }

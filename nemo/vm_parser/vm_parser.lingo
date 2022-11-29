@@ -12,8 +12,9 @@ value = ws (upd | array | add):value ws { :value };
 app = ws "APP" ws "(" ws var:var ws "," ws value:idx ws ")" ws { App(:var, :idx) };
 upd = ws "UPD" ws "(" ws var:var ws "," ws value:idx ws "," ws value:val ws ")" ws { Upd(:var, :idx, :val) };
 
-if =  ws label:label ws ":" ws "if" ws predicate:pred ws "then" ws labelSet:then ws else:else { VMIf(:label, :pred, :then, :else) };
+if =  ws label:label ws ":" ws "if" ws cond:pred ws "then" ws labelSet:then ws else:else { VMIf(:label, :pred, :then, :else) };
 else = ws "else" ws labelSet:else ws { :else };
+cond = predicate | ws "true" ws { True() } | ws "false" ws { False() };
 predicate = ws add:e1 ws predName$name ws add:e2 ws { Pred(:e1, :e2, $name) } | ws "not" ws predicate:pred ws { Not(:pred) };
 predName = ('<=' | '>=' | '!=' | '<' | '>' | '='); 
 
@@ -32,7 +33,7 @@ expr = ws add:val ws { :val } | ws "(" ws expr:val ws ")" ws { :val };
 
 label = int:l { :l };
 labelSet = ws "{" ws int*:arr ws "}" ws { Array(:arr) };
-array = ws "[" ws (int | var)*:arr ws "]" ws { Array(:arr) };
+array = ws "[" ws value*:arr ws "]" ws { Array(:arr) };
 int = ws ('0' - '9')+$i ws { Int(s2i($i)) };
 var = ws ('A' - 'Z')+$name ws { Var($name) };
 ws = (' ' | '\r' | '\n' | '\t')*;

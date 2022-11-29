@@ -20,11 +20,11 @@ export {
 	Choice(lbody : Body, rbody : Body);
 	If(cond : Cond, t : Body, e : Body);
 
-	Value ::= Expr, Array, Upd;
+	Value ::= Expr, Array, Upd, None;
 	Int(val : int);
 	Array(vals : [Value]);
-	App(array : Var, index : Value);
-	Upd(array : Var, index : Value, value : Value);
+	App(array : Var, index : Expr);
+	Upd(array : Var, index : Expr, value : Value);
 
 	Expr ::= Int, Var, BinOp, App;
 	BinOp(name : string, left: Expr, right: Expr);
@@ -34,7 +34,7 @@ export {
 	True();
 	False();
 
-	parse(source : string) -> Program;
+	parseNemo(source : string) -> Program;
 	buildOp(xs : [flow]) -> BinOp;
 }
 
@@ -50,6 +50,25 @@ buildSequence(xs : [flow]) {
 	fold(xs[1], xs[0], \acc, x -> Sequence(acc, x));
 }
 
+buildIf(xs : [flow]) {
+	cond = xs[0];
+	t = xs[1];
+	e = xs[2];
+	if (length(t) > 0) {
+		if (length(e) > 0) {
+			Choice(Sequence(Test(cond), t[0]), Sequence(Test(Not(cond)), e[0]));
+		} else {
+			Choice(Sequence(Test(cond), t[0]), Test(Not(cond)));
+		}
+	} else {
+		if (length(e) > 0) {
+			Choice(Test(cond), Sequence(Test(Not(cond)), e[0]));
+		} else {
+			Choice(Test(cond), Test(Not(cond)));
+		}
+	}
+}
+
 nemoGrammarOp : ref Maybe<[PegOp]> = ref None();
 
 nemoGrammar() {
@@ -60,12 +79,13 @@ nemoGrammar() {
 	});
 }
 
-parse(source: string) {
+parseNemo(source: string) {
 	specialPegActions = {
 		t1 = setTree(defaultPegActions.t, "buildOp", buildOp);
 		t2 = setTree(t1, "buildChoice", buildChoice);
 		t3 = setTree(t2, "buildSequence", buildSequence);
-		SemanticActions(t3);
+		t4 = setTree(t3, "buildIf", buildIf);
+		SemanticActions(t4);
 	}
 	parsic(nemoGrammar(), source, specialPegActions);
 }
