@@ -15,28 +15,29 @@ main() {
     expr = getUrlParameter("expr");
 	usage : string = "Usage: calculate -- \"expr=<expression>\" \"vars=<variables>\" \"<variable1>=<value1>\" ...";
 	if (expr == "") {
+		println("Expressinon expected");
 		println(usage);
+		quit(-1);
+	} else {
+		println("RPN expression: " + expr);
+		println("\n[RPNExpr]:");
+		rpn1 : [RPNExpr] = parseRPN(expr);
+		println(rpn1);
+		// println(calculateRPN(e, variables));
+		infix = translateToInfix(rpn1);
+		println("\nRPN to infix:");
+		println(infix);
+
+		rpn2 = translateToRPN(infix);
+		println("\nInfix to RPN:");
+		println(rpn2);
+
+		println("\nInfix expression:");
+		println(infixToString(infix) + " = " + d2s(calculateRPN(rpn1, variables)));
+		
+		println("\nRPN expression:");
+		println(RPNToString(rpn2));
+		
 		quit(0);
 	}
-
-	println("RPN expression: " + expr);
-	println("\n[RPNExpr]:");
-	rpn1 : [RPNExpr] = parseRPN(expr);
-	println(rpn1);
-	// println(calculateRPN(e, variables));
-	infix = translateToInfix(rpn1);
-	println("\nRPN to infix:");
-	println(infix);
-
-	rpn2 = translateToRPN(infix);
-	println("\nInfix to RPN:");
-	println(rpn2);
-
-	println("\nInfix expression:");
-	println(print(infix) + " = " + d2s(calculateRPN(rpn1, variables)));
-	
-	println("\nRPN expression:");
-	println(RPNToString(rpn2));
-	
-	quit(0);
 }

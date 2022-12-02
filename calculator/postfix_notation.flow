@@ -40,15 +40,17 @@ translateToInfix(arr : [RPNExpr]) {
 
 translateReq(expr : Expr, rpn : [RPNExpr]) -> [RPNExpr] {
 	switch(expr) {
-		Const(c):
-			arrayPush(rpn, Const(c));
-		Var(v):
-			arrayPush(rpn, Var(v));
+		Const(c): arrayPush(rpn, Const(c));
+
+		Var(v): arrayPush(rpn, Var(v));
+
 		BinOp(name, l, r): {
 			a = translateReq(l, rpn);
 			b = translateReq(r, a);
 			arrayPush(b, OpName(name));
 		}
+
+		default: arrayPush(rpn, Const(0.0));
 	}
 }
 

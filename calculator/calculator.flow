@@ -14,9 +14,10 @@ main() {
     expr = getUrlParameter("expr");
 	usage : string = "Usage: calculate -- \"expr=<expression>\" \"vars=<variables>\" \"<variable1>=<value1>\" ...";
 	if (expr == "") {
+		println("Expressinon expected");
 		println(usage);
-		quit(1);
-	} 
+		quit(-1);
+	} else {
 		// println("Expression: " + expr);
 		e : Expr = parse(expr);
 		println(e);
@@ -28,5 +29,5 @@ main() {
 		println(infixToString(simpEx) + " = " + d2s(calculate(e, variables)));
 
 		quit(0);
-	
+	}
 }
